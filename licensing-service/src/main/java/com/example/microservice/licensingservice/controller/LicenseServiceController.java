@@ -18,12 +18,11 @@ public class LicenseServiceController {
                                @PathVariable("licenseId") String licenseId) {
 
         //return licenseService.getLicense(licenseId);
-        return License.builder()
+        return new License()
                 .withId(licenseId)
                 .withOrganizationId(organizationId)
                 .withProductName("Teleco")
-                .withLicenseType("Seat")
-                .build();
+                .withLicenseType("Seat");
     }
 
     @PutMapping(value="{licenseId}")
