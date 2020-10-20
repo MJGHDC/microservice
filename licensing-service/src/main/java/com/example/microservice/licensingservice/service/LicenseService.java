@@ -1,7 +1,11 @@
 package com.example.microservice.licensingservice.service;
 
+import com.example.microservice.licensingservice.clients.OrganizationDiscoveryClient;
+import com.example.microservice.licensingservice.clients.OrganizationFeignClient;
+import com.example.microservice.licensingservice.clients.OrganizationRestTemplateClient;
 import com.example.microservice.licensingservice.config.ServiceConfig;
 import com.example.microservice.licensingservice.model.License;
+import com.example.microservice.licensingservice.model.Organization;
 import com.example.microservice.licensingservice.repository.LicenseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,16 +18,27 @@ import java.util.UUID;
 public class LicenseService {
 
     private final LicenseRepository licenseRepository;
-
     private final ServiceConfig config;
+    private final OrganizationFeignClient organizationFeignClient;
+    private final OrganizationRestTemplateClient organizationRestClient;
+    private final OrganizationDiscoveryClient organizationDiscoveryClient;
 
-    public License getLicense(String organizationId, String licenseId) {
+
+    public License getLicense(String organizationId,String licenseId, String clientType) {
         License license = licenseRepository.findByOrganizationIdAndLicenseId(organizationId, licenseId);
-        return license.withComment(config.getExampleProperty());
+
+        Organization org = retrieveOrgInfo(organizationId, clientType);
+
+        return license
+                .withOrganizationName(org.getName())
+                .withContactName(org.getContactName())
+                .withContactEmail(org.getContactEmail())
+                .withContactPhone(org.getContactPhone())
+                .withComment(config.getExampleProperty());
     }
 
     public List<License> getLicensesByOrg(String organizationId){
-        return licenseRepository.findByOrganizationId( organizationId );
+        return licenseRepository.findByOrganizationId(organizationId);
     }
 
     public void saveLicense(License license){
@@ -39,5 +54,28 @@ public class LicenseService {
 
     public void deleteLicense(License license){
         licenseRepository.delete(license);
+    }
+
+    private Organization retrieveOrgInfo(String organizationId, String clientType){
+        Organization organization = null;
+
+        switch (clientType) {
+            case "feign":
+                System.out.println("I am using the feign client");
+                organization = organizationFeignClient.getOrganization(organizationId);
+                break;
+            case "rest":
+                System.out.println("I am using the rest client");
+                organization = organizationRestClient.getOrganization(organizationId);
+                break;
+            case "discovery":
+                System.out.println("I am using the discovery client");
+                organization = organizationDiscoveryClient.getOrganization(organizationId);
+                break;
+            default:
+                organization = organizationRestClient.getOrganization(organizationId);
+        }
+
+        return organization;
     }
 }

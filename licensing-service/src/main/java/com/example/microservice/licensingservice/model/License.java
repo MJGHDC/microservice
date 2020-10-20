@@ -2,10 +2,7 @@ package com.example.microservice.licensingservice.model;
 
 import lombok.*;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 
 @NoArgsConstructor
 //@Builder(setterPrefix = "with")
@@ -21,6 +18,18 @@ public class License {
     @Column(name = "organization_id", nullable = false)
     private String organizationId;
 
+    @Transient
+    private String organizationName ="";
+
+    @Transient
+    private String contactName ="";
+
+    @Transient
+    private String contactPhone ="";
+
+    @Transient
+    private String contactEmail ="";
+
     @Column(name = "product_name", nullable = false)
     private String productName;
 
@@ -33,7 +42,7 @@ public class License {
     @Column(name = "license_allocated", nullable = false)
     private Integer licenseAllocated;
 
-    @Column(name = "comment")
+    @Column(name="comment")
     private String comment;
 
     public License withId(String id){
@@ -68,6 +77,26 @@ public class License {
 
     public License withComment(String comment){
         this.setComment(comment);
+        return this;
+    }
+
+    public License withOrganizationName(String organizationName){
+        this.setOrganizationName(organizationName);
+        return this;
+    }
+
+    public License withContactName(String contactName){
+        this.setContactName(contactName);
+        return this;
+    }
+
+    public License withContactPhone(String contactPhone){
+        this.setContactPhone(contactPhone);
+        return this;
+    }
+
+    public License withContactEmail(String contactEmail){
+        this.setContactEmail(contactEmail);
         return this;
     }
 }

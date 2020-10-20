@@ -1,10 +1,10 @@
 package com.example.microservice.licensingservice.model;
 
-import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-@Builder(setterPrefix = "with")
 @Getter
+@NoArgsConstructor
 public class Organization {
     String id;
     String name;
