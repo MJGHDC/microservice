@@ -7,12 +7,19 @@ import com.example.microservice.licensingservice.config.ServiceConfig;
 import com.example.microservice.licensingservice.model.License;
 import com.example.microservice.licensingservice.model.Organization;
 import com.example.microservice.licensingservice.repository.LicenseRepository;
+import com.example.microservice.licensingservice.utils.UserContextHolder;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixProperty;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class LicenseService {
@@ -23,6 +30,24 @@ public class LicenseService {
     private final OrganizationRestTemplateClient organizationRestClient;
     private final OrganizationDiscoveryClient organizationDiscoveryClient;
 
+
+    public License getLicense(String organizationId,String licenseId) {
+        License license = licenseRepository.findByOrganizationIdAndLicenseId(organizationId, licenseId);
+
+        Organization org = getOrganization(organizationId);
+
+        return license
+                .withOrganizationName(org.getName())
+                .withContactName(org.getContactName())
+                .withContactEmail(org.getContactEmail())
+                .withContactPhone(org.getContactPhone())
+                .withComment(config.getExampleProperty());
+    }
+
+    @HystrixCommand
+    private Organization getOrganization(String organizationId) {
+        return organizationRestClient.getOrganization(organizationId);
+    }
 
     public License getLicense(String organizationId,String licenseId, String clientType) {
         License license = licenseRepository.findByOrganizationIdAndLicenseId(organizationId, licenseId);
@@ -37,7 +62,27 @@ public class LicenseService {
                 .withComment(config.getExampleProperty());
     }
 
+//    @HystrixCommand(fallbackMethod = "buildFallbackLicenseList")
+    @HystrixCommand(
+            fallbackMethod = "buildFallbackLicenseList",
+            threadPoolKey = "licenseByOrgThreadPool",
+            threadPoolProperties =
+                    {@HystrixProperty(name = "coreSize",value="30"),
+                            @HystrixProperty(name="maxQueueSize", value="10")},
+            commandProperties={
+//                    @HystrixProperty(name="execution.isolation.thread.timeoutInMilliseconds", value="12000"),
+                    @HystrixProperty(name="circuitBreaker.requestVolumeThreshold", value="10"),
+                    @HystrixProperty(name="circuitBreaker.errorThresholdPercentage", value="75"),
+                    @HystrixProperty(name="circuitBreaker.sleepWindowInMilliseconds", value="7000"),
+                    @HystrixProperty(name="metrics.rollingStats.timeInMilliseconds", value="15000"),
+                    @HystrixProperty(name="metrics.rollingStats.numBuckets", value="5")}
+    )
     public List<License> getLicensesByOrg(String organizationId){
+        log.debug("LicenseService.getLicensesByOrg  Correlation id: {}", UserContextHolder.getContext().getCorrelationId());
+        randomlyRunLong();
+//        if (true) {
+//            throw new RuntimeException("haha");
+//        }
         return licenseRepository.findByOrganizationId(organizationId);
     }
 
@@ -54,6 +99,20 @@ public class LicenseService {
 
     public void deleteLicense(License license){
         licenseRepository.delete(license);
+    }
+
+    @HystrixCommand
+    private List<License> buildFallbackLicenseList(String organizationId){
+        log.info("폴백 메서드에도 히스트릭스가 적용이 되네");
+        randomlyRunLong();
+        List<License> fallbackList = new ArrayList<>();
+        License license = new License()
+                .withId("0000000-00-00000")
+                .withOrganizationId( organizationId )
+                .withProductName("Sorry no licensing information currently available");
+
+        fallbackList.add(license);
+        return fallbackList;
     }
 
     private Organization retrieveOrgInfo(String organizationId, String clientType){
@@ -77,5 +136,21 @@ public class LicenseService {
         }
 
         return organization;
+    }
+
+    private void randomlyRunLong(){
+        Random rand = new Random();
+
+        int randomNum = rand.nextInt((3 - 1) + 1) + 1;
+
+        if (randomNum==3) sleep();
+    }
+
+    private void sleep(){
+        try {
+            Thread.sleep(11000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }
